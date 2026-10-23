@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Company Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#f3f5f8;--surface:#fff;--fg:#121a24;--muted:#5d6878;--line:#dfe4ea;--soft:#eef2f6;--accent:#1d5fd1;--up:#1c8a55;--down:#c53b32;
+  --display:"Instrument Serif",Georgia,serif;--body:"Spline Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0e131a;--surface:#161d27;--fg:#e6ebf1;--muted:#98a3b3;--line:#283241;--soft:#1c2531;--accent:#6ea2ff;--up:#4cc58a;--down:#f07a70;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e131a;--surface:#161d27;--fg:#e6ebf1;--muted:#98a3b3;--line:#283241;--soft:#1c2531;--accent:#6ea2ff;--up:#4cc58a;--down:#f07a70;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:820px;margin:0 auto;padding-inline:16px;padding-block:28px 56px;display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font:400 clamp(2rem,7vw,2.8rem)/1.05 var(--display)}
+p{margin:0}
+.lede{color:var(--muted);max-width:60ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.co{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-decoration:none;color:inherit;min-width:0;transition:border-color .15s}
+.co:hover,.co:focus-visible{border-color:var(--accent);outline:none}
+.tk{font:500 .72rem var(--mono);color:var(--accent);letter-spacing:.05em}
+.nm{font:400 1.4rem/1.15 var(--display)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.px{font-size:1.1rem;font-weight:500}.up{color:var(--up)}.down{color:var(--down)}
+.sm{font-size:.8rem;color:var(--muted)}
+.latest{font-size:.84rem;border-top:1px solid var(--line);padding-top:8px;color:var(--muted)}
+.latest b{color:var(--fg);font-weight:500}
+footer{font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <span class="tk">COMPANY WATCH</span>
+    <h1>Company timelines</h1>
+    <p class="lede">The key events behind each company on the watchlist: results, orders, corporate actions, management changes and policy moves, each with sources.</p>
+  </header>
+  <div class="grid" id="grid"><p class="sm">Loading…</p></div>
+  <footer>Compiled automatically from public sources. For information only; not investment advice.</footer>
+</div>
+<script>
+(function(){
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function inr(n,dp){return n==null?"—":Number(n).toLocaleString("en-IN",{minimumFractionDigits:dp||0,maximumFractionDigits:dp||0})}
+  var src = window.__COMPANIES__ ? Promise.resolve(window.__COMPANIES__) : fetch("companies.json",{cache:"no-cache"}).then(function(r){return r.json()});
+  src.then(function(list){
+    document.getElementById("grid").innerHTML = list.map(function(c){
+      var ch=c.change_pct, cls=ch>0?"up":ch<0?"down":"";
+      return '<a class="co" href="'+encodeURIComponent(c.ticker)+'/"><span class="tk">NSE: '+esc(c.ticker)+(c.sector?' · '+esc(c.sector):'')+'</span><span class="nm">'+esc(c.name)+'</span>'+
+        '<span class="row"><span class="px">'+(c.price!=null?'₹'+inr(c.price,2):'—')+'</span><span class="'+cls+'">'+(ch==null?'':(ch>0?'+':'')+ch.toFixed(2)+'%')+'</span></span>'+
+        '<span class="row sm"><span>MCap '+(c.mcap_cr!=null?'₹'+inr(c.mcap_cr)+' Cr':'—')+'</span><span>'+(c.event_count||0)+' events</span></span>'+
+        (c.latest?'<span class="latest">Latest: <b>'+esc(c.latest)+'</b></span>':'')+'</a>';
+    }).join("") || '<p class="sm">No companies yet.</p>';
+  }).catch(function(){document.getElementById("grid").innerHTML='<p class="sm">Could not load the company list. Please refresh.</p>'});
+})();
+</script>
+</body>
+</html>
