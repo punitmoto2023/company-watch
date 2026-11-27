@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Company Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column, header card with price + chart, then a vertical month-grouped timeline; details open in a dialog */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#121a24; --muted:#5d6878; --line:#dfe4ea; --soft:#eef2f6;
+  --accent:#1d5fd1; --accent-soft:#e3ecfb;
+  --up:#1c8a55; --down:#c53b32; --flat:#7a8594; --mixed:#b07a12;
+  --c-results:#1d5fd1; --c-orders:#0f8f86; --c-corporate:#7a4fd0; --c-management:#c2541f;
+  --c-regulatory:#a8326e; --c-market:#3c6e91; --c-macro:#8a6d1d; --c-other:#6b7686;
+  --display:"Instrument Serif", Georgia, serif;
+  --body:"Spline Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"Spline Sans Mono", ui-monospace, Consolas, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#161d27; --fg:#e6ebf1; --muted:#98a3b3; --line:#283241; --soft:#1c2531;
+  --accent:#6ea2ff; --accent-soft:#1b2a44;
+  --up:#4cc58a; --down:#f07a70; --flat:#8d98a8; --mixed:#e0aa45;
+  --c-results:#6ea2ff; --c-orders:#3cc7bb; --c-corporate:#a98af0; --c-management:#f0905d;
+  --c-regulatory:#e26aa6; --c-market:#79aed3; --c-macro:#d7b552; --c-other:#9aa5b5;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#161d27; --fg:#e6ebf1; --muted:#98a3b3; --line:#283241; --soft:#1c2531;
+  --accent:#6ea2ff; --accent-soft:#1b2a44;
+  --up:#4cc58a; --down:#f07a70; --flat:#8d98a8; --mixed:#e0aa45;
+  --c-results:#6ea2ff; --c-orders:#3cc7bb; --c-corporate:#a98af0; --c-management:#f0905d;
+  --c-regulatory:#e26aa6; --c-market:#79aed3; --c-macro:#d7b552; --c-other:#9aa5b5;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:820px;margin:0 auto;padding-inline:16px;padding-block:20px 56px;display:flex;flex-direction:column;gap:22px}
+a{color:var(--accent)}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.crumbs{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:.82rem;color:var(--muted)}
+.crumbs a{color:var(--muted);text-decoration:none}
+.crumbs a:hover{color:var(--accent)}
+
+/* header card */
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.idrow{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.chip{font:500 .72rem var(--mono);letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.chip.tk{background:var(--accent-soft);color:var(--accent)}
+h1{font:400 clamp(1.9rem,6vw,2.6rem)/1.08 var(--display);letter-spacing:-.01em}
+.about{color:var(--fg);max-width:64ch}
+.quote{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:end}
+.price{font:500 clamp(1.8rem,7vw,2.3rem)/1 var(--mono);font-variant-numeric:tabular-nums}
+.chg{font:500 .95rem var(--mono);font-variant-numeric:tabular-nums}
+.chg.up{color:var(--up)}.chg.down{color:var(--down)}
+.asof{grid-column:1/-1;font-size:.78rem;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat b{font:500 1rem var(--mono);font-variant-numeric:tabular-nums}
+.range{display:flex;flex-direction:column;gap:6px}
+.range .bar{position:relative;height:6px;border-radius:3px;background:var(--soft)}
+.range .bar i{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--surface);transform:translateX(-50%)}
+.range .ends{display:flex;justify-content:space-between;font:400 .76rem var(--mono);color:var(--muted)}
+
+/* chart */
+.chartbox{display:flex;flex-direction:column;gap:6px}
+.chartbox .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.8rem;color:var(--muted)}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:1.8}
+.chart .ar{fill:var(--accent);opacity:.09}
+.chart .gd{stroke:var(--line);stroke-width:1}
+.chart text{fill:var(--muted);font:11px var(--mono)}
+.range .bar{border:1px solid var(--line)}
+.chart .ev{cursor:pointer}
+.chart .ev circle{stroke:var(--surface);stroke-width:1.5}
+.chart .ev:hover circle,.chart .ev:focus circle{r:6}
+
+/* summary strip */
+.summary{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:flex;align-items:center;gap:6px;font-size:.82rem;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.pill[aria-pressed="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.pill .n{font:500 .74rem var(--mono);opacity:.75}
+
+/* timeline */
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tl-head h2{font:400 1.7rem var(--display)}
+.legend{display:flex;gap:12px;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
+.legend b{font-weight:600}
+.legend .up{color:var(--up)}.legend .down{color:var(--down)}.legend .mixed{color:var(--mixed)}
+.timeline{position:relative;display:flex;flex-direction:column;gap:6px}
+.month{font:500 .74rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:14px 0 4px 34px;position:sticky;top:0;background:var(--bg);z-index:1}
+.month .yr{color:var(--fg)}
+.ev-row{position:relative;padding-left:34px}
+.ev-row::before{content:"";position:absolute;left:11px;top:-6px;bottom:-6px;width:2px;background:var(--line)}
+.node{position:absolute;left:4px;top:16px;width:16px;height:16px;border-radius:50%;background:var(--surface);border:3px solid var(--c);z-index:1}
+.ev-row.imp3 .node{left:1px;top:13px;width:22px;height:22px;background:var(--c)}
+.card{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color .15s, transform .15s}
+.card:hover{border-color:var(--c)}
+.ev-row.imp3 .card{border-left:4px solid var(--c)}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:.76rem;color:var(--muted)}
+.cat{font:500 .7rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--c)}
+.imp{font:600 .76rem var(--mono)}
+.imp.positive{color:var(--up)}.imp.negative{color:var(--down)}.imp.neutral{color:var(--flat)}.imp.mixed{color:var(--mixed)}
+.ttl{font-weight:500;font-size:.98rem;line-height:1.4}
+.ev-row.imp3 .ttl{font-weight:600}
+.more{font-size:.76rem;color:var(--accent)}
+.empty{padding:20px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);text-align:center}
+
+/* details (no-JS fallback + dialog content) */
+.details{display:flex;flex-direction:column;gap:14px}
+.details h2{font:400 1.5rem var(--display)}
+.det{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;scroll-margin-top:16px}
+.det:target{border-color:var(--accent)}
+.det h3{font-size:1.02rem}
+.why{background:var(--soft);border-radius:8px;padding:8px 10px;font-size:.88rem}
+.src{margin:0;padding-left:1.1em;font-size:.84rem;display:flex;flex-direction:column;gap:3px}
+.src a{overflow-wrap:anywhere}
+
+dialog{border:0;padding:0;border-radius:14px;max-width:min(640px,calc(100vw - 24px));width:100%;background:var(--surface);color:var(--fg);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,14,20,.55)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto}
+.dlg .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dlg h3{font:400 1.45rem/1.2 var(--display)}
+.x{border:1px solid var(--line);background:var(--soft);border-radius:8px;width:34px;height:34px;flex:none;cursor:pointer;font-size:1.1rem;line-height:1}
+.dlg .acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:.82rem;cursor:pointer}
+
+footer{font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="crumbs"><a href="../">← All companies</a><span id="updated"></span></div>
+  <noscript><p class="empty">This page needs JavaScript for the chart and timeline. Event details are listed below.</p></noscript>
+  <section class="hero" id="hero"><p class="muted">Loading company…</p></section>
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <div class="tl-head"><h2>Event timeline</h2>
+      <div class="legend"><span><b class="up">▲</b> positive</span><span><b class="down">▼</b> negative</span><span><b class="mixed">◆</b> mixed</span><span>● neutral</span><span>Big dot = major event</span></div>
+    </div>
+    <div class="summary" id="filters" role="group" aria-label="Filter by event type"></div>
+    <div class="timeline" id="timeline"></div>
+  </section>
+  <section class="details" id="details"></section>
+  <footer>
+    <span>Compiled automatically from public sources by the Company Watch research pipeline. Every event links to its sources. Prices are end-of-day and may be delayed.</span>
+    <span>For information only; not investment advice.</span>
+  </footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-title"><div class="dlg" id="dlg-body"></div></dialog>
+
+<script>
+(function(){
+  var CATS = {
+    results:{label:"Results",c:"--c-results"}, orders:{label:"Orders & contracts",c:"--c-orders"},
+    corporate:{label:"Corporate action",c:"--c-corporate"}, management:{label:"Management",c:"--c-management"},
+    regulatory:{label:"Regulatory & legal",c:"--c-regulatory"}, market:{label:"Market & brokers",c:"--c-market"},
+    macro:{label:"Macro & policy",c:"--c-macro"}, other:{label:"Other",c:"--c-other"}
+  };
+  var IMP = {positive:{s:"▲",t:"Positive"},negative:{s:"▼",t:"Negative"},mixed:{s:"◆",t:"Mixed"},neutral:{s:"●",t:"Neutral"}};
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var state = {filter:"all", data:null};
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function cat(e){return CATS[e.category]?e.category:"other"}
+  function d(s){var p=String(s).split("-");return new Date(Date.UTC(+p[0],(+p[1]||1)-1,+p[2]||1))}
+  function fdate(s){var x=d(s);return x.getUTCDate()+" "+MONTHS[x.getUTCMonth()]+" "+x.getUTCFullYear()}
+  function inr(n,dp){if(n==null||isNaN(n))return "—";return Number(n).toLocaleString("en-IN",{minimumFractionDigits:dp||0,maximumFractionDigits:dp||0})}
+  function crore(n){if(n==null||isNaN(n))return "—";return "₹"+inr(n,0)+" Cr"}
+
+  function load(){
+    if(window.__DATA__) return Promise.resolve(window.__DATA__);
+    return fetch("data.json",{cache:"no-cache"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()});
+  }
+
+  function renderHero(D){
+    var c=D.company||{}, q=D.quote||{};
+    document.title = (c.name||c.ticker||"Company") + " · Company Watch";
+    var chg = q.change_pct, cls = chg>0?"up":chg<0?"down":"";
+    var chgTxt = chg==null?"":(chg>0?"+":"")+chg.toFixed(2)+"%";
+    var pos = (q.high_52w>q.low_52w && q.price!=null) ? Math.max(0,Math.min(100,(q.price-q.low_52w)/(q.high_52w-q.low_52w)*100)) : null;
+    var h = '';
+    h += '<div class="idrow">'+(c.ticker?'<span class="chip tk">NSE: '+esc(c.ticker)+'</span>':'')+(c.bse_code?'<span class="chip">BSE: '+esc(c.bse_code)+'</span>':'')+(c.sector?'<span class="chip">'+esc(c.sector)+'</span>':'')+'</div>';
+    h += '<h1>'+esc(c.name||c.ticker)+'</h1>';
+    if(c.about) h += '<p class="about">'+esc(c.about)+'</p>';
+    h += '<div class="quote"><span class="price">'+(q.price!=null?'₹'+inr(q.price,2):'—')+'</span><span class="chg '+cls+'">'+esc(chgTxt)+'</span>';
+    h += '<span class="asof">'+(q.as_of?'Last close, '+fdate(q.as_of):'Price unavailable')+'</span></div>';
+    h += '<div class="stats">';
+    h += '<div class="stat"><span>Market cap</span><b>'+crore(q.mcap_cr)+'</b></div>';
+    h += '<div class="stat"><span>P/E (TTM)</span><b>'+(q.pe!=null?inr(q.pe,1)+'×':'—')+'</b></div>';
+    h += '<div class="stat"><span>52-week high</span><b>'+(q.high_52w!=null?'₹'+inr(q.high_52w,1):'—')+'</b></div>';
+    h += '<div class="stat"><span>52-week low</span><b>'+(q.low_52w!=null?'₹'+inr(q.low_52w,1):'—')+'</b></div>';
+    h += '</div>';
+    if(pos!=null) h += '<div class="range"><div class="bar" aria-label="Price position in 52-week range"><i style="left:'+pos.toFixed(1)+'%"></i></div><div class="ends"><span>52W low</span><span>'+pos.toFixed(0)+'% of range</span><span>52W high</span></div></div>';
+    if(D.history && D.history.length>3) h += '<div class="chartbox"><div class="hd"><span>Weekly close, with events marked</span><span>Tap a dot</span></div><div id="chart"></div></div>';
+    if(c.highlights && c.highlights.length) h += '<div class="idrow">'+c.highlights.map(function(x){return '<span class="chip">'+esc(x)+'</span>'}).join('')+'</div>';
+    document.getElementById("hero").innerHTML = h;
+    drawChart();
+    document.getElementById("updated").textContent = D.generated_at ? "Updated "+fdate(D.generated_at.slice(0,10)) : "";
+  }
+
+  var lastW=0;
+  function drawChart(){
+    var box=document.getElementById("chart"); if(!box||!state.data) return;
+    var w=Math.round(box.clientWidth); if(!w||w===lastW) return; lastW=w;
+    box.innerHTML=chart(state.data, w);
+  }
+  window.addEventListener("resize",function(){clearTimeout(drawChart.t);drawChart.t=setTimeout(drawChart,150)});
+
+  function chart(D, W){
+    var H=D.history, Ht=Math.round(Math.max(160,Math.min(220,W*0.36))), L=44, R=8, T=10, B=22;
+    var t0=d(H[0][0]).getTime(), t1=d(H[H.length-1][0]).getTime();
+    var vals=H.map(function(p){return p[1]}), lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+    var pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+    function X(t){return L+(t-t0)/(t1-t0||1)*(W-L-R)}
+    function Y(v){return T+(hi-v)/(hi-lo)*(Ht-T-B)}
+    var path=H.map(function(p,i){return (i?"L":"M")+X(d(p[0]).getTime()).toFixed(1)+" "+Y(p[1]).toFixed(1)}).join(" ");
+    var area=path+" L"+X(t1).toFixed(1)+" "+(Ht-B)+" L"+L+" "+(Ht-B)+" Z";
+    var s='<svg class="chart" viewBox="0 0 '+W+' '+Ht+'" role="img" aria-label="Weekly price chart with event markers">';
+    for(var i=0;i<=3;i++){var v=lo+(hi-lo)*i/3,y=Y(v);s+='<line class="gd" x1="'+L+'" x2="'+(W-R)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'"/><text x="'+(L-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">'+inr(v,0)+'</text>'}
+    var y0=d(H[0][0]).getUTCFullYear(), y1=d(H[H.length-1][0]).getUTCFullYear();
+    for(var yr=y0;yr<=y1;yr++){var tt=Date.UTC(yr,0,1); if(tt<t0||tt>t1)continue; var x=X(tt); s+='<line class="gd" x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+T+'" y2="'+(Ht-B)+'"/><text x="'+x.toFixed(1)+'" y="'+(Ht-6)+'" text-anchor="middle">'+yr+'</text>'}
+    s+='<path class="ar" d="'+area+'"/><path class="ln" d="'+path+'"/>';
+    (D.events||[]).forEach(function(e){
+      var t=d(e.date).getTime(); if(t<t0||t>t1) return;
+      var j=0; while(j<H.length-1 && d(H[j+1][0]).getTime()<=t) j++;
+      var x=X(t), y=Y(H[j][1]), r=(e.importance>=3?5:3.5);
+      s+='<g class="ev" tabindex="0" role="button" data-id="'+esc(e.id)+'" aria-label="'+esc(fdate(e.date)+": "+e.title)+'"><title>'+esc(fdate(e.date)+" · "+e.title)+'</title><circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'" style="fill:var('+CATS[cat(e)].c+')"/></g>';
+    });
+    return s+'</svg>';
+  }
+
+  function renderFilters(D){
+    var counts={}; (D.events||[]).forEach(function(e){var k=cat(e);counts[k]=(counts[k]||0)+1});
+    var h='<button class="pill" data-f="all" aria-pressed="'+(state.filter==="all")+'">All <span class="n">'+(D.events||[]).length+'</span></button>';
+    h+='<button class="pill" data-f="major" aria-pressed="'+(state.filter==="major")+'" style="--c:var(--fg)"><span class="dot"></span>Major only</button>';
+    Object.keys(CATS).forEach(function(k){ if(!counts[k])return;
+      h+='<button class="pill" data-f="'+k+'" aria-pressed="'+(state.filter===k)+'" style="--c:var('+CATS[k].c+')"><span class="dot"></span>'+CATS[k].label+' <span class="n">'+counts[k]+'</span></button>'});
+    var el=document.getElementById("filters"); el.innerHTML=h;
+    el.onclick=function(ev){var b=ev.target.closest("[data-f]"); if(!b)return; state.filter=b.getAttribute("data-f"); renderFilters(D); renderTimeline(D)};
+  }
+
+  function renderTimeline(D){
+    var evs=(D.events||[]).slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0});
+    evs=evs.filter(function(e){return state.filter==="all"||(state.filter==="major"?e.importance>=3:cat(e)===state.filter)});
+    var h='', last='';
+    if(!evs.length) h='<p class="empty">No events in this view yet.</p>';
+    evs.forEach(function(e){
+      var x=d(e.date), key=x.getUTCFullYear()+"-"+x.getUTCMonth();
+      if(key!==last){h+='<div class="month">'+MONTHS[x.getUTCMonth()]+' <span class="yr">'+x.getUTCFullYear()+'</span></div>'; last=key}
+      var k=cat(e), im=IMP[e.impact]||IMP.neutral;
+      h+='<div class="ev-row imp'+(e.importance||2)+'" style="--c:var('+CATS[k].c+')"><span class="node" aria-hidden="true"></span>'+
+         '<button class="card" data-id="'+esc(e.id)+'"><span class="meta"><span class="mono">'+fdate(e.date)+'</span><span class="cat">'+CATS[k].label+'</span><span class="imp '+esc(e.impact||"neutral")+'" title="'+im.t+'">'+im.s+' '+im.t+'</span></span>'+
+         '<span class="ttl">'+esc(e.title)+'</span><span class="more">Read more →</span></button></div>';
+    });
+    var el=document.getElementById("timeline"); el.innerHTML=h;
+  }
+
+  function detailHTML(e, inDialog){
+    var k=cat(e), im=IMP[e.impact]||IMP.neutral;
+    var h='<span class="meta"><span class="mono">'+fdate(e.date)+'</span><span class="cat" style="--c:var('+CATS[k].c+')">'+CATS[k].label+'</span><span class="imp '+esc(e.impact||"neutral")+'">'+im.s+' '+im.t+'</span>'+(e.importance>=3?'<span class="chip">Major</span>':'')+'</span>';
+    if(!inDialog) h+='<h3>'+esc(e.title)+'</h3>';
+    if(e.details) h+='<p>'+esc(e.details)+'</p>';
+    if(e.why_it_matters) h+='<p class="why"><b>Why it matters:</b> '+esc(e.why_it_matters)+'</p>';
+    if(e.sources&&e.sources.length) h+='<div><span class="muted" style="font-size:.78rem">Sources</span><ol class="src">'+e.sources.map(function(s){return '<li><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title||s.url)+'</a></li>'}).join('')+'</ol></div>';
+    return h;
+  }
+
+  function renderDetails(D){
+    var evs=(D.events||[]).slice().sort(function(a,b){return a.date<b.date?1:-1});
+    document.getElementById("details").innerHTML = evs.length ? '<h2>Event details</h2>'+evs.map(function(e){return '<article class="det" id="e-'+esc(e.id)+'">'+detailHTML(e,false)+'</article>'}).join('') : '';
+  }
+
+  var dlg=document.getElementById("dlg");
+  function open(id){
+    var e=(state.data.events||[]).filter(function(x){return String(x.id)===String(id)})[0]; if(!e)return;
+    if(typeof dlg.showModal!=="function"){location.hash="e-"+id;return}
+    document.getElementById("dlg-body").innerHTML='<div class="top"><h3 id="dlg-title">'+esc(e.title)+'</h3><button class="x" aria-label="Close" data-close>×</button></div>'+detailHTML(e,true)+
+      '<div class="acts"><button class="btn" data-copy="'+esc(id)+'">Copy link to this event</button></div>';
+    dlg.showModal();
+    try{history.replaceState(null,"","#e-"+id)}catch(_){}
+  }
+  dlg.addEventListener("click",function(ev){
+    if(ev.target===dlg||ev.target.closest("[data-close]")){dlg.close();return}
+    var c=ev.target.closest("[data-copy]"); if(c){var url=location.href.split("#")[0]+"#e-"+c.getAttribute("data-copy");
+      (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){c.textContent="Link copied"},function(){c.textContent=url})}
+  });
+  dlg.addEventListener("close",function(){try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}});
+  document.addEventListener("click",function(ev){var t=ev.target.closest("[data-id]"); if(t&&!dlg.contains(t)){ev.preventDefault();open(t.getAttribute("data-id"))}});
+  document.addEventListener("keydown",function(ev){var t=ev.target.closest&&ev.target.closest("g.ev[data-id]"); if(t&&(ev.key==="Enter"||ev.key===" ")){ev.preventDefault();open(t.getAttribute("data-id"))}});
+
+  load().then(function(D){
+    state.data=D; lastW=0; renderHero(D); renderFilters(D); renderTimeline(D); renderDetails(D);
+    var m=location.hash.match(/^#e-(.+)$/); if(m) open(decodeURIComponent(m[1]));
+  }).catch(function(err){
+    document.getElementById("hero").innerHTML='<p class="empty">Could not load company data ('+esc(err.message)+'). Please refresh.</p>';
+  });
+})();
+</script>
+</body>
+</html>
